@@ -1,0 +1,7 @@
+{
+  "ical": {
+    "autoSync": true,
+    "syncInterval": "1440",
+    "lastSync": null
+  }
+}

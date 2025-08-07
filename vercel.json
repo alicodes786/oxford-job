@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/sync-ical-feeds?cron=true",
+      "schedule": "0 0 * * *"
+    }
+  ]
+}

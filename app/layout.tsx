@@ -17,8 +17,8 @@ try {
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "CB Property Management Dashboard",
-  description: "A property management dashboard",
+  title: "Oxford City Listings Dashboard",
+  description: "Property management dashboard for Oxford City listings and cleaners",
 };
 
 export default function RootLayout({
@@ -27,7 +27,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
         <AuthProvider>
           {children}

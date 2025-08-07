@@ -15,14 +15,15 @@ interface SidebarProps {
 export function Sidebar({ isMobileSidebarOpen, setIsMobileSidebarOpen }: SidebarProps) {
   const { user, logout } = useAuth();
   const pathname = usePathname();
-  const [mounted, setMounted] = useState(false);
+  const [isClient, setIsClient] = useState(false);
 
-  // Avoid hydration mismatch
+  // Use useEffect for client-side-only code
   useEffect(() => {
-    setMounted(true);
+    setIsClient(true);
   }, []);
   
-  if (!user || !mounted) return null;
+  // Only render the sidebar content on the client
+  if (!isClient || !user) return <div className="w-64" />; // Return placeholder to maintain layout
   
   return (
     <>
@@ -45,7 +46,7 @@ export function Sidebar({ isMobileSidebarOpen, setIsMobileSidebarOpen }: Sidebar
       >
         <div className="p-4 border-b flex justify-between items-center">
           <div>
-            <h1 className="text-xl font-bold">Dashboard</h1>
+            <h1 className="text-xl font-bold">Oxford Dashboard</h1>
             <p className="text-sm text-gray-500">{user.username} ({user.role})</p>
           </div>
           <Button 

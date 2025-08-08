@@ -11,7 +11,6 @@ import { toast } from 'sonner';
 import { Listing } from '@/lib/models';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { Pencil, Save, X, Plus, Trash2 } from 'lucide-react';
-import { Settings } from '@/lib/settings';
 
 interface BankAccountAssociation {
   bank_account: string;
@@ -30,14 +29,19 @@ function BankAccountManagementContent() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [bankAccountToDelete, setBankAccountToDelete] = useState<string | null>(null);
 
-  // Load settings to get available bank accounts
-  const loadSettings = async () => {
+  // Load bank accounts from database
+  const loadBankAccounts = async () => {
     try {
-      const response = await fetch('/api/settings');
-      const settings: Settings = await response.json();
-      setAvailableBankAccounts(settings.bankAccounts || []);
+      const response = await fetch('/api/bank-accounts');
+      const data = await response.json();
+      
+      if (data.success) {
+        setAvailableBankAccounts(data.bankAccounts.map((ba: any) => ba.name));
+      } else {
+        toast.error('Failed to load bank accounts');
+      }
     } catch (error) {
-      console.error('Error loading settings:', error);
+      console.error('Error loading bank accounts:', error);
       toast.error('Failed to load bank accounts');
     }
   };
@@ -112,14 +116,13 @@ function BankAccountManagementContent() {
     }
 
     try {
-      const response = await fetch('/api/settings', {
+      const response = await fetch('/api/bank-accounts', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          operation: 'add_bank_account',
-          bankAccount: newBankAccountName.trim(),
+          name: newBankAccountName.trim(),
         }),
       });
 
@@ -128,7 +131,7 @@ function BankAccountManagementContent() {
       if (data.success) {
         toast.success('Bank account added successfully');
         setNewBankAccountName('');
-        loadSettings(); // Reload settings to refresh available bank accounts
+        loadBankAccounts(); // Reload bank accounts
       } else {
         toast.error(data.error || 'Failed to add bank account');
       }
@@ -156,22 +159,15 @@ function BankAccountManagementContent() {
     if (!bankAccountToDelete) return;
 
     try {
-      const response = await fetch('/api/settings', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          operation: 'remove_bank_account',
-          bankAccount: bankAccountToDelete,
-        }),
+      const response = await fetch(`/api/bank-accounts?name=${encodeURIComponent(bankAccountToDelete)}`, {
+        method: 'DELETE',
       });
 
       const data = await response.json();
       
       if (data.success) {
         toast.success(`"${bankAccountToDelete}" removed successfully`);
-        loadSettings(); // Reload settings to refresh available bank accounts
+        loadBankAccounts(); // Reload bank accounts
       } else {
         toast.error(data.error || 'Failed to remove bank account');
       }
@@ -185,7 +181,7 @@ function BankAccountManagementContent() {
   };
 
   useEffect(() => {
-    loadSettings();
+    loadBankAccounts();
     loadData();
   }, []);
 

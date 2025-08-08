@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { Listing } from '@/lib/models';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -26,6 +27,8 @@ function BankAccountManagementContent() {
   const [newBankAccountName, setNewBankAccountName] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [bankAccountToDelete, setBankAccountToDelete] = useState<string | null>(null);
 
   // Load settings to get available bank accounts
   const loadSettings = async () => {
@@ -135,14 +138,22 @@ function BankAccountManagementContent() {
     }
   };
 
-  // Remove a bank account
-  const removeBankAccount = async (bankAccountName: string) => {
+  // Open delete confirmation dialog
+  const openDeleteDialog = (bankAccountName: string) => {
     // Check if any listings are using this bank account
     const listingsUsingAccount = listings.filter(l => l.bank_account === bankAccountName);
     if (listingsUsingAccount.length > 0) {
-      toast.error(`Cannot remove bank account "${bankAccountName}" because it's assigned to ${listingsUsingAccount.length} properties`);
+      toast.error(`Cannot remove "${bankAccountName}" - it's assigned to ${listingsUsingAccount.length} properties`);
       return;
     }
+
+    setBankAccountToDelete(bankAccountName);
+    setDeleteDialogOpen(true);
+  };
+
+  // Actually remove the bank account
+  const confirmRemoveBankAccount = async () => {
+    if (!bankAccountToDelete) return;
 
     try {
       const response = await fetch('/api/settings', {
@@ -152,14 +163,14 @@ function BankAccountManagementContent() {
         },
         body: JSON.stringify({
           operation: 'remove_bank_account',
-          bankAccount: bankAccountName,
+          bankAccount: bankAccountToDelete,
         }),
       });
 
       const data = await response.json();
       
       if (data.success) {
-        toast.success('Bank account removed successfully');
+        toast.success(`"${bankAccountToDelete}" removed successfully`);
         loadSettings(); // Reload settings to refresh available bank accounts
       } else {
         toast.error(data.error || 'Failed to remove bank account');
@@ -167,6 +178,9 @@ function BankAccountManagementContent() {
     } catch (error) {
       console.error('Error removing bank account:', error);
       toast.error('Failed to remove bank account');
+    } finally {
+      setDeleteDialogOpen(false);
+      setBankAccountToDelete(null);
     }
   };
 
@@ -243,7 +257,7 @@ function BankAccountManagementContent() {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => removeBankAccount(bankAccount)}
+                    onClick={() => openDeleteDialog(bankAccount)}
                     className="text-red-600 hover:text-red-700"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -367,6 +381,32 @@ function BankAccountManagementContent() {
             </Card>
           ))}
         </div>
+
+        {/* Delete Confirmation Dialog */}
+        <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Delete Bank Account</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete "{bankAccountToDelete}"? This action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button 
+                variant="outline" 
+                onClick={() => setDeleteDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button 
+                variant="destructive" 
+                onClick={confirmRemoveBankAccount}
+              >
+                Delete
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

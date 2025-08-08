@@ -6,12 +6,10 @@
   },
   "bankAccounts": [
     "CU",
-    "JCB Unit 1",
     "JCB Unit 2",
     "SWJC",
-    "185 CR",
     "234 CR",
-    "Sofia 378",
-    "Oxford Account"
+    "Oxford Account",
+    "Oxford Test Account"
   ]
 }

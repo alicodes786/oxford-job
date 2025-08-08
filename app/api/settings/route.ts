@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getSettings, updateSettings, updateIcalSettings } from '@/lib/settings';
+import { getSettings, updateSettings, updateIcalSettings, getBankAccounts, addBankAccount, removeBankAccount } from '@/lib/settings';
 
 // GET handler for retrieving settings
 export async function GET() {
@@ -20,19 +20,60 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     
-    if (body.ical) {
-      // If we're updating iCal settings specifically
-      const updatedSettings = updateIcalSettings(body.ical);
-      return NextResponse.json(updatedSettings);
-    } else {
-      // General settings update
-      const updatedSettings = updateSettings(body);
-      return NextResponse.json(updatedSettings);
+    // Handle different operations
+    if (body.operation === 'add_bank_account') {
+      if (!body.bankAccount || typeof body.bankAccount !== 'string') {
+        return NextResponse.json(
+          { error: 'Bank account name is required' },
+          { status: 400 }
+        );
+      }
+      
+      const updatedSettings = addBankAccount(body.bankAccount);
+      return NextResponse.json({ 
+        success: true, 
+        message: 'Bank account added successfully',
+        settings: updatedSettings 
+      });
     }
+    
+    if (body.operation === 'remove_bank_account') {
+      if (!body.bankAccount || typeof body.bankAccount !== 'string') {
+        return NextResponse.json(
+          { error: 'Bank account name is required' },
+          { status: 400 }
+        );
+      }
+      
+      const updatedSettings = removeBankAccount(body.bankAccount);
+      return NextResponse.json({ 
+        success: true, 
+        message: 'Bank account removed successfully',
+        settings: updatedSettings 
+      });
+    }
+    
+    // Handle iCal settings updates
+    if (body.ical) {
+      const updatedSettings = updateIcalSettings(body.ical);
+      return NextResponse.json({ 
+        success: true, 
+        message: 'Settings updated successfully',
+        settings: updatedSettings 
+      });
+    }
+    
+    // Handle general settings updates
+    const updatedSettings = updateSettings(body);
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Settings updated successfully',
+      settings: updatedSettings 
+    });
   } catch (error) {
     console.error('Error updating settings:', error);
     return NextResponse.json(
-      { error: 'Failed to update settings' },
+      { error: error instanceof Error ? error.message : 'Failed to update settings' },
       { status: 500 }
     );
   }

@@ -8,6 +8,7 @@ export interface Settings {
     syncInterval: string;
     lastSync: string | null;
   };
+  bankAccounts: string[];
 }
 
 // Default settings
@@ -17,6 +18,15 @@ const defaultSettings: Settings = {
     syncInterval: '15',
     lastSync: null,
   },
+  bankAccounts: [
+    'CU',
+    'JCB Unit 1', 
+    'JCB Unit 2',
+    'SWJC',
+    '185 CR',
+    '234 CR',
+    'Sofia 378'
+  ]
 };
 
 // Path to the settings file
@@ -42,7 +52,24 @@ export function getSettings(): Settings {
     // Read and parse the settings file
     const fileContents = fs.readFileSync(settingsPath, 'utf8');
     try {
-      return JSON.parse(fileContents) as Settings;
+      const parsedSettings = JSON.parse(fileContents) as Partial<Settings>;
+      
+      // Merge with defaults to ensure all properties exist
+      const mergedSettings: Settings = {
+        ical: {
+          ...defaultSettings.ical,
+          ...parsedSettings.ical
+        },
+        bankAccounts: parsedSettings.bankAccounts || defaultSettings.bankAccounts
+      };
+      
+      // If bank accounts were missing, update the file
+      if (!parsedSettings.bankAccounts) {
+        console.log('Bank accounts missing from settings. Adding defaults.');
+        fs.writeFileSync(settingsPath, JSON.stringify(mergedSettings, null, 2));
+      }
+      
+      return mergedSettings;
     } catch (parseError) {
       console.error('Error parsing settings JSON:', parseError);
       console.log('Resetting to default settings');
@@ -69,6 +96,7 @@ export function updateSettings(settings: Partial<Settings>): Settings {
         ...currentSettings.ical,
         ...(settings.ical || {}),
       },
+      bankAccounts: settings.bankAccounts || currentSettings.bankAccounts,
     };
     
     // Write to file
@@ -100,5 +128,55 @@ export function updateIcalSettings(icalSettings: Partial<Settings['ical']>): Set
   } catch (error) {
     console.error('Error updating iCal settings:', error);
     return getSettings();
+  }
+} 
+
+// Function to get bank accounts
+export function getBankAccounts(): string[] {
+  try {
+    const settings = getSettings();
+    return settings.bankAccounts || [];
+  } catch (error) {
+    console.error('Error getting bank accounts:', error);
+    return defaultSettings.bankAccounts;
+  }
+}
+
+// Function to add a bank account
+export function addBankAccount(bankAccount: string): Settings {
+  try {
+    const currentSettings = getSettings();
+    
+    // Check if bank account already exists
+    if (currentSettings.bankAccounts.includes(bankAccount)) {
+      throw new Error('Bank account already exists');
+    }
+    
+    const updatedBankAccounts = [...currentSettings.bankAccounts, bankAccount];
+    
+    return updateSettings({
+      bankAccounts: updatedBankAccounts
+    });
+  } catch (error) {
+    console.error('Error adding bank account:', error);
+    throw error;
+  }
+}
+
+// Function to remove a bank account
+export function removeBankAccount(bankAccount: string): Settings {
+  try {
+    const currentSettings = getSettings();
+    
+    const updatedBankAccounts = currentSettings.bankAccounts.filter(
+      account => account !== bankAccount
+    );
+    
+    return updateSettings({
+      bankAccounts: updatedBankAccounts
+    });
+  } catch (error) {
+    console.error('Error removing bank account:', error);
+    throw error;
   }
 } 

@@ -61,8 +61,8 @@ export function Sidebar({ isMobileSidebarOpen, setIsMobileSidebarOpen }: Sidebar
         
         <nav className="flex-1 p-4">
           <ul className="space-y-6">
-            {/* Group 1: Jobs, Analytics, Status Updates */}
-            {user.role !== 'sub-admin' && (
+            {/* Group 1: Jobs, Analytics, Status Updates - REMOVED */}
+            {/* {user.role !== 'sub-admin' && (
               <div>
                 <h3 className="mb-2 text-xs uppercase font-semibold text-gray-500 px-2">Jobs & Analytics</h3>
                 <li>
@@ -107,7 +107,7 @@ export function Sidebar({ isMobileSidebarOpen, setIsMobileSidebarOpen }: Sidebar
                   </>
                 )}
               </div>
-            )}
+            )} */}
             
             {/* Group 2: Calendar, Listings, Cleaners */}
             {(user.role === 'admin' || user.role === 'sub-admin') && (
@@ -128,6 +128,7 @@ export function Sidebar({ isMobileSidebarOpen, setIsMobileSidebarOpen }: Sidebar
                         </Button>
                       </Link>
                     </li>
+                    {/* Cleaner Reports - COMMENTED OUT
                     <li>
                       <Link href="/dashboard/cleaner-reports" passHref>
                         <Button 
@@ -142,6 +143,7 @@ export function Sidebar({ isMobileSidebarOpen, setIsMobileSidebarOpen }: Sidebar
                         </Button>
                       </Link>
                     </li>
+                    */}
                   </>
                 )}
                 <li>

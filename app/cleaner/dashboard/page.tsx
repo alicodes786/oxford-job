@@ -47,13 +47,6 @@ function CleanerDashboardContent() {
   const [isSyncing, setIsSyncing] = useState(false);
   const router = useRouter();
 
-  // Redirect if not authenticated
-  useEffect(() => {
-    if (!isLoading && !cleaner) {
-      console.log('No cleaner found in dashboard, redirecting');
-      router.replace('/cleaner/login');
-    }
-  }, [cleaner, isLoading, router]);
 
   // Load assignments when cleaner is available
   useEffect(() => {

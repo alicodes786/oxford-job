@@ -20,7 +20,7 @@ import { toast } from "sonner";
 import { Loader2, ArrowLeft } from 'lucide-react';
 
 export default function EditTaskPage() {
-  const { user, loading } = useAuth();
+  const { user } = useAuth();
   const router = useRouter();
   const params = useParams();
   
@@ -34,12 +34,6 @@ export default function EditTaskPage() {
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [formData, setFormData] = useState<Task | null>(null);
-
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push('/');
-    }
-  }, [user, loading, router]);
 
   useEffect(() => {
     const fetchTask = async () => {
@@ -138,7 +132,7 @@ export default function EditTaskPage() {
     }
   };
 
-  if (loading || isLoading || !formData) {
+  if (isLoading || !formData) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-6 w-6 animate-spin mr-2" />

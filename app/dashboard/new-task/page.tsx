@@ -17,10 +17,10 @@ import {
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { toast } from "sonner";
-import { Loader2, ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 
 export default function NewTaskPage() {
-  const { user, loading } = useAuth();
+  const { user } = useAuth();
   const router = useRouter();
   const [allUsers, setAllUsers] = useState<User[]>([]);
   
@@ -36,12 +36,6 @@ export default function NewTaskPage() {
     progress: 'not started',
     last_updated: new Date().toISOString(),
   });
-
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push('/');
-    }
-  }, [user, loading, router]);
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -115,19 +109,6 @@ export default function NewTaskPage() {
       });
     }
   };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-6 w-6 animate-spin mr-2" />
-        Loading...
-      </div>
-    );
-  }
-
-  if (!user) {
-    return null;
-  }
 
   return (
     <div className="p-3 md:p-6 lg:p-8">
@@ -297,7 +278,7 @@ export default function NewTaskPage() {
                   <Input
                     id="assignee"
                     name="assignee"
-                    value={user.username}
+                    value={user?.username ?? ''}
                     readOnly
                     disabled
                     className="w-full"

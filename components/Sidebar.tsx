@@ -1,7 +1,7 @@
 'use client';
 
 import { useAuth } from '@/contexts/AuthContext';
-import { BarChart, Briefcase, LogOut, Menu, X, AlertCircle, Calendar, Home, Users, Database, FileText, CreditCard, Bell } from 'lucide-react';
+import { BarChart, Briefcase, Menu, X, AlertCircle, Calendar, Home, Users, Database, FileText, CreditCard, Bell } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Button } from './ui/button';
@@ -13,7 +13,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ isMobileSidebarOpen, setIsMobileSidebarOpen }: SidebarProps) {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const pathname = usePathname();
   const [isClient, setIsClient] = useState(false);
 
@@ -225,12 +225,6 @@ export function Sidebar({ isMobileSidebarOpen, setIsMobileSidebarOpen }: Sidebar
           </ul>
         </nav>
         
-        <div className="p-4 border-t">
-          <Button variant="outline" className="w-full" onClick={() => logout()}>
-            <LogOut className="mr-2 h-4 w-4" />
-            Logout
-          </Button>
-        </div>
       </div>
     </>
   );

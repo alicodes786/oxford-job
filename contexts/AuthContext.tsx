@@ -1,8 +1,7 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { supabase, User } from '@/lib/supabase';
-import { useRouter } from 'next/navigation';
+import { createContext, useContext, ReactNode } from 'react';
+import { User } from '@/lib/supabase';
 
 interface AuthContextType {
   user: User | null;
@@ -11,76 +10,21 @@ interface AuthContextType {
   logout: () => Promise<void>;
 }
 
+const DEFAULT_USER: User = {
+  id: 0,
+  username: 'Admin',
+  role: 'admin',
+  email: '',
+};
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Helper to set cookie
-const setCookie = (name: string, value: string, days = 7) => {
-  const expires = new Date(Date.now() + days * 864e5).toUTCString();
-  document.cookie = name + '=' + encodeURIComponent(value) + '; expires=' + expires + '; path=/';
-};
-
-// Helper to remove cookie
-const removeCookie = (name: string) => {
-  document.cookie = name + '=; expires=Thu, 01 Jan 1970 00:00:01 GMT; path=/';
-};
-
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const router = useRouter();
-
-  useEffect(() => {
-    // Check for user in localStorage on initial load
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-    setLoading(false);
-  }, []);
-
-  const login = async (username: string, password: string) => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('id, username, role, email')
-        .eq('username', username)
-        .eq('password', password)
-        .single();
-
-      if (error || !data) {
-        throw new Error('Invalid login credentials');
-      }
-
-      // Store user data in both localStorage and cookie
-      const userData = JSON.stringify(data);
-      localStorage.setItem('user', userData);
-      setCookie('user', userData);
-      
-      setUser(data);
-      
-      if (data.role === 'sub-admin') {
-        router.push('/dashboard/calendar');
-      } else {
-        router.push('/dashboard');
-      }
-    } catch (error) {
-      console.error('Login error:', error);
-      throw error;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const logout = async () => {
-    setUser(null);
-    localStorage.removeItem('user');
-    removeCookie('user');
-    router.push('/');
-  };
+  const login = async (_username: string, _password: string) => {};
+  const logout = async () => {};
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user: DEFAULT_USER, loading: false, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

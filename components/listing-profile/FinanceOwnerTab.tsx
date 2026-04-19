@@ -149,10 +149,9 @@ export function FinanceOwnerTab({ listingId, listing, formData, updateFormData }
 
   const currentYearRange = Array.from({ length: 5 }, (_, i) => currentDate.getFullYear() - 2 + i);
 
-  // Calculate total expenses
+  // Calculate total expenses (Oxford: L&P / laundry excluded from listings scope)
   const cleanerExpenses = reportData?.cleaning_summary?.total_cost || 0;
-  const lpExpenses = reportData?.laundry_expenses?.grand_total || 0;
-  const totalExpenses = cleanerExpenses + lpExpenses;
+  const totalExpenses = cleanerExpenses;
 
   return (
     <div className="space-y-6">
@@ -303,7 +302,7 @@ export function FinanceOwnerTab({ listingId, listing, formData, updateFormData }
           ) : (
             <div className="space-y-6">
               {/* Summary Cards */}
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-blue-50 rounded-lg p-4">
                   <p className="text-sm text-gray-600">Total Cleanings</p>
                   <p className="text-2xl font-bold">{reportData?.cleaning_summary?.total_cleanings || 0}</p>
@@ -316,11 +315,7 @@ export function FinanceOwnerTab({ listingId, listing, formData, updateFormData }
                   <p className="text-sm text-gray-600">Cleaner Expenses</p>
                   <p className="text-2xl font-bold">{formatPrice(cleanerExpenses)}</p>
                 </div>
-                <div className="bg-orange-50 rounded-lg p-4">
-                  <p className="text-sm text-gray-600">L&P Expenses</p>
-                  <p className="text-2xl font-bold">{formatPrice(lpExpenses)}</p>
-                </div>
-                <div className="bg-purple-50 rounded-lg p-4 md:col-span-2">
+                <div className="bg-purple-50 rounded-lg p-4">
                   <p className="text-sm text-gray-600">Total Expenses</p>
                   <p className="text-3xl font-bold">{formatPrice(totalExpenses)}</p>
                 </div>
@@ -369,33 +364,8 @@ export function FinanceOwnerTab({ listingId, listing, formData, updateFormData }
                 </div>
               )}
 
-              {/* L&P Breakdown */}
-              {reportData?.laundry_expenses && reportData.laundry_expenses.checkout_count > 0 && (
-                <div className="border rounded-lg p-4 bg-orange-50">
-                  <h4 className="font-semibold mb-2">Laundry & Peripheral Breakdown</h4>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                    <div>
-                      <p className="text-gray-600">Checkouts</p>
-                      <p className="font-semibold">{reportData.laundry_expenses.checkout_count}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-600">Laundry</p>
-                      <p className="font-semibold">{formatPrice(reportData.laundry_expenses.laundry_total)}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-600">Peripherals</p>
-                      <p className="font-semibold">{formatPrice(reportData.laundry_expenses.peripheral_total)}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-600">Total</p>
-                      <p className="font-semibold text-orange-700">{formatPrice(reportData.laundry_expenses.grand_total)}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
               {/* Empty State */}
-              {!reportData?.cleaning_summary?.total_cleanings && !reportData?.laundry_expenses && (
+              {!reportData?.cleaning_summary?.total_cleanings && (
                 <div className="text-center py-8 text-gray-500">
                   <p>No financial data available for {months[selectedMonth - 1]} {selectedYear}</p>
                 </div>

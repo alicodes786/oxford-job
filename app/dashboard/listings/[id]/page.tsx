@@ -15,7 +15,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { OverviewTab } from '@/components/listing-profile/OverviewTab';
 import { OperationsTab } from '@/components/listing-profile/OperationsTab';
 import { DocsComplianceTab } from '@/components/listing-profile/DocsComplianceTab';
-import { LPCleanerListTab } from '@/components/listing-profile/LPCleanerListTab';
 import { FinanceOwnerTab } from '@/components/listing-profile/FinanceOwnerTab';
 
 function ListingProfileContent() {
@@ -194,13 +193,12 @@ function ListingProfileContent() {
 
       {/* Tabs */}
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 gap-2">
+        <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 gap-2">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="operations" >
             Operations
           </TabsTrigger>
           <TabsTrigger value="documents">Docs & Compliance</TabsTrigger>
-          <TabsTrigger value="checklist">L&P/Cleaner List</TabsTrigger>
           <TabsTrigger value="landlord-reports">Finance/Owner</TabsTrigger>
         </TabsList>
 
@@ -222,15 +220,6 @@ function ListingProfileContent() {
 
         <TabsContent value="documents">
           <DocsComplianceTab listingId={listingId} listingName={listing.name} />
-        </TabsContent>
-
-        <TabsContent value="checklist">
-          <LPCleanerListTab 
-            listingId={listingId} 
-            listingName={listing.name}
-            formData={formData}
-            updateFormData={updateFormData}
-          />
         </TabsContent>
 
         <TabsContent value="landlord-reports">

@@ -1,92 +1,100 @@
 import { NextResponse } from 'next/server';
 
+// Helper function to parse iCal date strings into Date objects
+function parseICalDate(dateStr: string): Date {
+  if (dateStr.includes('T')) {
+    // Datetime format: YYYYMMDDTHHMMSSZ or YYYYMMDDTHHMMSS
+    const year  = parseInt(dateStr.slice(0, 4));
+    const month = parseInt(dateStr.slice(4, 6)) - 1;
+    const day   = parseInt(dateStr.slice(6, 8));
+    const hour  = parseInt(dateStr.slice(9, 11));
+    const min   = parseInt(dateStr.slice(11, 13));
+    const sec   = parseInt(dateStr.slice(13, 15));
+
+    if (dateStr.endsWith('Z')) {
+      // Explicitly UTC — use Date.UTC to avoid local-timezone shift
+      return new Date(Date.UTC(year, month, day, hour, min, sec));
+    }
+    // Local/floating time — treat as UTC for consistency
+    return new Date(Date.UTC(year, month, day, hour, min, sec));
+  }
+  // Date-only format: YYYYMMDD — treat as UTC midnight
+  return new Date(Date.UTC(
+    parseInt(dateStr.slice(0, 4)),
+    parseInt(dateStr.slice(4, 6)) - 1,
+    parseInt(dateStr.slice(6, 8))
+  ));
+}
+
 // Helper function to parse iCal data
 function parseICalData(icalData: string, listingName?: string) {
-  const events: Array<{
-    id: string, 
-    title: string, 
-    start: string, 
-    end: string, 
-    listing: string
-  }> = [];
-  
+  // Unfold iCal lines (RFC 5545: continuation lines start with whitespace)
+  const unfolded = icalData.replace(/\r\n[ \t]/g, '').replace(/\n[ \t]/g, '');
+
   // Extract calendar name/listing name from the iCal feed
   let detectedListingName = listingName || 'Unknown Listing';
-  const calendarNameMatch = icalData.match(/X-WR-CALNAME:(.+?)(?:\r\n|\n)/);
+  const calendarNameMatch = unfolded.match(/X-WR-CALNAME:(.+?)(?:\r\n|\n)/);
   if (calendarNameMatch && calendarNameMatch[1]) {
     detectedListingName = calendarNameMatch[1].trim();
   }
-  
-  // Basic parsing of iCal format
-  const eventBlocks = icalData.split('BEGIN:VEVENT');
-  
-  // Skip the first element as it's the header
+
+  // Map of uid → { event, sequence } so we always keep the highest-sequence version.
+  // Per RFC 5545, a higher SEQUENCE number means a newer update to the same event.
+  const eventMap = new Map<string, {
+    id: string;
+    title: string;
+    start: string;
+    end: string;
+    listing: string;
+    sequence: number;
+  }>();
+
+  const eventBlocks = unfolded.split('BEGIN:VEVENT');
+
+  // Skip the first element — it's the calendar header
   for (let i = 1; i < eventBlocks.length; i++) {
     const block = eventBlocks[i];
-    
-    // Extract event details
-    const summary = block.match(/SUMMARY:(.*?)(?:\r\n|\n)/)?.[1] || 'Reserved';
-    const dtstart = block.match(/DTSTART(?:;VALUE=DATE)?:(.*?)(?:\r\n|\n)/)?.[1];
-    const dtend = block.match(/DTEND(?:;VALUE=DATE)?:(.*?)(?:\r\n|\n)/)?.[1];
-    const uid = block.match(/UID:(.*?)(?:\r\n|\n)/)?.[1] || `event-${i}`;
-    
-    if (dtstart && dtend) {
-      try {
-        // Parse dates - format could be YYYYMMDD or YYYYMMDDTHHMMSSZ
-        let startDate: Date, endDate: Date;
-        
-        if (dtstart.includes('T')) {
-          // If date includes time
-          startDate = new Date(
-            parseInt(dtstart.slice(0, 4)),
-            parseInt(dtstart.slice(4, 6)) - 1,
-            parseInt(dtstart.slice(6, 8)),
-            parseInt(dtstart.slice(9, 11)),
-            parseInt(dtstart.slice(11, 13)),
-            parseInt(dtstart.slice(13, 15))
-          );
-          
-          endDate = new Date(
-            parseInt(dtend.slice(0, 4)),
-            parseInt(dtend.slice(4, 6)) - 1,
-            parseInt(dtend.slice(6, 8)),
-            parseInt(dtend.slice(9, 11)),
-            parseInt(dtend.slice(11, 13)),
-            parseInt(dtend.slice(13, 15))
-          );
-        } else {
-          // If date only
-          startDate = new Date(
-            parseInt(dtstart.slice(0, 4)),
-            parseInt(dtstart.slice(4, 6)) - 1,
-            parseInt(dtstart.slice(6, 8))
-          );
-          
-          endDate = new Date(
-            parseInt(dtend.slice(0, 4)),
-            parseInt(dtend.slice(4, 6)) - 1,
-            parseInt(dtend.slice(6, 8))
-          );
-        }
-        
-        events.push({
-          id: uid,
-          title: summary,
-          start: startDate.toISOString(),
-          end: endDate.toISOString(),
-          listing: detectedListingName
-        });
-      } catch (dateError) {
-        console.error('Error parsing date in iCal event:', dateError);
-        // Continue to next event
+
+    const summary  = block.match(/SUMMARY:(.*?)(?:\r\n|\n)/)?.[1]?.trim() || 'Reserved';
+    const dtstart  = block.match(/DTSTART(?:;[^:]+)?:(.*?)(?:\r\n|\n)/)?.[1]?.trim();
+    const dtend    = block.match(/DTEND(?:;[^:]+)?:(.*?)(?:\r\n|\n)/)?.[1]?.trim();
+    const uid      = block.match(/UID:(.*?)(?:\r\n|\n)/)?.[1]?.trim() || `event-${i}`;
+    const seqMatch = block.match(/SEQUENCE:(.*?)(?:\r\n|\n)/)?.[1]?.trim();
+    const sequence = seqMatch ? parseInt(seqMatch, 10) : 0;
+
+    if (!dtstart || !dtend) continue;
+
+    try {
+      const startDate = parseICalDate(dtstart);
+      const endDate   = parseICalDate(dtend);
+
+      const candidate = {
+        id: uid,
+        title: summary,
+        start: startDate.toISOString(),
+        end: endDate.toISOString(),
+        listing: detectedListingName,
+        sequence,
+      };
+
+      const existing = eventMap.get(uid);
+      // Keep this version if: no existing entry, OR this one has a higher (or equal) SEQUENCE.
+      // Equal sequence keeps the last occurrence, which is correct per iCal spec.
+      if (!existing || sequence >= existing.sequence) {
+        eventMap.set(uid, candidate);
       }
+    } catch (dateError) {
+      console.error('Error parsing date in iCal event:', dateError);
     }
   }
-  
-  return { 
-    events, 
+
+  // Strip internal `sequence` field before returning
+  const events = Array.from(eventMap.values()).map(({ sequence: _seq, ...event }) => event);
+
+  return {
+    events,
     detectedListingName,
-    eventCount: events.length 
+    eventCount: events.length,
   };
 }
 

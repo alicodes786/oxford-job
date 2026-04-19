@@ -46,7 +46,6 @@ import {
 } from 'lucide-react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { useAuth } from '@/contexts/AuthContext';
-import { hasDashboardPermission, DASHBOARD_PAGES } from '@/lib/dashboard-permissions';
 import { toast } from 'sonner';
 import { format, isToday, isYesterday, parseISO } from 'date-fns';
 import {
@@ -177,9 +176,12 @@ function ListingsDashboardContent() {
 
   // ── Permission check ──────────────────────────────────────────────────────
   useEffect(() => {
-    if (!loading && user && !hasDashboardPermission(user, DASHBOARD_PAGES.LISTINGS)) {
-      router.push('/dashboard');
-      toast.error('You do not have permission to access this page');
+    if (!loading && user) {
+      const ok = user.role === 'admin' || user.role === 'sub-admin';
+      if (!ok) {
+        router.push('/dashboard');
+        toast.error('You do not have permission to access this page');
+      }
     }
   }, [user, loading, router]);
 

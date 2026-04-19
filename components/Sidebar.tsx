@@ -1,7 +1,7 @@
 'use client';
 
 import { useAuth } from '@/contexts/AuthContext';
-import { BarChart, Briefcase, Menu, X, AlertCircle, Calendar, Home, Users, Database, FileText, CreditCard, Bell } from 'lucide-react';
+import {  X,  Calendar, Home, Users, Database, FileText, CreditCard} from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Button } from './ui/button';

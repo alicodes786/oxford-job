@@ -175,15 +175,15 @@ function ListingsDashboardContent() {
   const years = Array.from({ length: 5 }, (_, i) => currentDate.getFullYear() - 2 + i);
 
   // ── Permission check ──────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!loading && user) {
-      const ok = user.role === 'admin' || user.role === 'sub-admin';
-      if (!ok) {
-        router.push('/dashboard');
-        toast.error('You do not have permission to access this page');
-      }
+useEffect(() => {
+  if (!loading && user) {
+    const ok = user.role === 'admin' || user.role === 'sub-admin';
+    if (!ok) {
+      router.push('/dashboard');
+      toast.error('You do not have permission to access this page');
     }
-  }, [user, loading, router]);
+  }
+}, [user, loading, router]);
 
   // ── Load summary ──────────────────────────────────────────────────────────
   useEffect(() => {

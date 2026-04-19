@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { sortListingsByName } from './utils';
 
 export interface Listing {
   id: string;
@@ -7,8 +8,276 @@ export interface Listing {
   color: string | null;
   hours: number;
   bank_account: string | null;
+  is_hidden?: boolean;
   created_at?: string;
   updated_at?: string;
+  
+  // Address fields
+  address_line1?: string | null;
+  address_line2?: string | null;
+  city?: string | null;
+  postcode?: string | null;
+  county?: string | null;
+  country?: string | null;
+  
+  // Entry codes
+  lock_type?: string | null;
+  access_code?: string | null;
+  access_instructions?: string | null;
+  
+  // Bin collection
+  bin_collection_day?: string | null;
+  bin_collection_notes?: string | null;
+  
+  // Landlord information
+  landlord_name?: string | null;
+  landlord_email?: string | null;
+  landlord_phone?: string | null;
+  landlord_city?: string | null;
+  landlord_postcode?: string | null;
+  landlord_alternative_phone?: string | null;
+  landlord_payment_preference?: string | null; // 'bank_transfer' | 'revolut' | 'paypal' | 'wise' | 'cash' | 'other'
+  landlord_commission_percentage?: number | null; // Admin-only
+  landlord_payment_terms?: string | null;
+  owner_stays_restrictions?: string | null;
+  
+  // Wifi & Utilities
+  wifi_name?: string | null;
+  wifi_password?: string | null;
+  
+  // Nature of agreement
+  nature_of_agreement?: string | null; // 'R2R' | 'Management'
+  
+  // Cleaner notes
+  cleaner_important_notes?: string | null;
+  
+  // Rates & Pricing
+  nightly_rate_low?: number | null;
+  nightly_rate_mid?: number | null;
+  nightly_rate_high?: number | null;
+  cleaning_fee?: number | null;
+  
+  // Finance/Owner report notes
+  landlord_report_notes?: string | null;
+}
+
+export interface ListingReminder {
+  id: string;
+  listing_id: string;
+  reminder_type: 'insurance' | 'epc' | 'safety' | 'tenancy' | 'maintenance' | 'other';
+  title: string;
+  due_date: string; // ISO date string
+  notes?: string | null;
+  status: 'active' | 'completed' | 'overdue';
+  created_at: string;
+  updated_at: string;
+  completed_at?: string | null;
+  // Optional compliance document info (for auto-created reminders)
+  compliance_document?: {
+    id: string;
+    reminder_id: string;
+    expiry_date: string | null;
+    compliance_type: string;
+  } | null;
+}
+
+export interface ListingDocument {
+  id: string;
+  listing_id: string;
+  file_name: string;
+  file_url: string;
+  file_type?: string | null; // 'contract' | 'certificate' | 'insurance' | 'photo' | 'epc' | 'other'
+  file_size?: number | null;
+  description?: string | null;
+  uploaded_at: string;
+  uploaded_by_user_id?: string | null;
+}
+
+export interface ListingComplianceDocument {
+  id: string;
+  listing_id: string;
+  compliance_type: 'gas_cert' | 'eicr' | 'pat_test' | 'insurance' | 'fire_risk' | 'ownership';
+  expiry_date?: string | null; // ISO date string (NULL for ownership docs)
+  file_url: string;
+  file_name: string;
+  file_size?: number | null;
+  uploaded_at: string;
+  uploaded_by_user_id?: string | null;
+  reminder_id?: string | null; // Linked auto-created reminder
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LaundryItem {
+  id: string;
+  name: string;
+  price_per_item: number;
+  category: 'laundry' | 'peripheral';
+  display_order: number;
+  is_active: boolean;
+}
+
+export interface ListingRentEntry {
+  id: string;
+  listing_id: string;
+  period_month: number; // 1-12
+  period_year: number;
+  gross_rent?: number | null;
+  expenses_out?: number | null;
+  net_rent_payout?: number | null;
+  notes?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ChecklistItem {
+  id: string;
+  type: 'checkbox' | 'text' | 'rating';
+  question: string;
+  required: boolean;
+  order: number;
+}
+
+export interface ListingChecklistTemplate {
+  id: string;
+  listing_id: string;
+  checklist_items: ChecklistItem[];
+  /** Full completion form (blocks). When set, drives cleaner job completion UI. */
+  completion_template?: unknown;
+  created_at: string;
+  updated_at: string;
+}
+
+// Operations interfaces
+export interface ConsumableItem {
+  item: string;
+  quantity: number;
+  last_checked: string; // ISO date string
+}
+
+export type BinScheduleType = 'weekly' | 'fortnightly';
+
+export interface BinCollectionItem {
+  type: string; // e.g. "Blue", "Grey (Black)"
+  /** Collection weekday (Monday … Sunday). */
+  day?: string;
+  reminder_enabled: boolean;
+  /** weekly = every week; fortnightly = every 14 days from anchor_date (same weekday) */
+  schedule_type?: BinScheduleType;
+  /** Required when schedule_type is fortnightly: a past collection date on `day` (yyyy-MM-dd, local). */
+  anchor_date?: string | null;
+}
+
+export interface AppliancesData {
+  washing_machine_type?: string;
+  washing_machine_model?: string;
+  washing_machine_instructions?: string;
+  iron_location?: string;
+  vacuum_location?: string;
+  spare_linen_location?: string;
+  common_issues?: string;
+  boiler_notes?: string;
+  water_shutoff?: string;
+  fuse_box?: string;
+  ac_remote?: string;
+  [key: string]: string | undefined; // Allow additional fields
+}
+
+export interface EmergencyNumbers {
+  council?: string;
+  building_concierge?: string;
+  nearest_pharmacy?: string;
+  [key: string]: string | undefined; // Allow additional fields
+}
+
+export interface ListingOperations {
+  id: string;
+  listing_id: string;
+  cleaner_notes?: string | null;
+  consumables: ConsumableItem[];
+  maintenance_notes?: string | null;
+  appliances: AppliancesData;
+  spare_key_location?: string | null;
+  key_safe_code?: string | null;
+  parking_access_code?: string | null;
+  gate_code?: string | null;
+  emergency_contact_name?: string | null;
+  emergency_contact_phone?: string | null;
+  bin_collection: BinCollectionItem[];
+  emergency_numbers: EmergencyNumbers;
+  directions_pdf_url?: string | null;
+  directions_maps_link?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ListingOperationPhoto {
+  id: string;
+  listing_id: string;
+  photo_type: 'before' | 'after' | 'maintenance' | 'general';
+  photo_url: string;
+  photo_description?: string | null;
+  uploaded_at: string;
+  uploaded_by_user_id?: string | null;
+  uploaded_by_name?: string | null;
+}
+
+export interface ListingOperationInvoice {
+  id: string;
+  listing_id: string;
+  invoice_url: string;
+  invoice_name: string;
+  invoice_amount?: number | null;
+  invoice_date?: string | null; // ISO date string
+  vendor_name?: string | null;
+  description?: string | null;
+  uploaded_at: string;
+  uploaded_by_user_id?: string | null;
+  uploaded_by_name?: string | null;
+}
+
+export interface ListingIssueLog {
+  id: string;
+  listing_id: string;
+  issue_date: string; // ISO date string
+  description: string;
+  assigned_to?: string | null;
+  cost?: number | null;
+  status: 'open' | 'in_progress' | 'resolved';
+  resolved_at?: string | null;
+  resolution_notes?: string | null;
+  job_completion_id?: string | null;
+  created_at: string;
+  updated_at: string;
+  created_by_user_id?: string | null;
+  created_by_name?: string | null;
+}
+
+export interface ListingOperationChangelog {
+  id: string;
+  listing_id: string;
+  change_type: 'code_update' | 'contact_update' | 'maintenance' | 'general';
+  description: string;
+  changed_by_user_id?: string | null;
+  changed_by_name?: string | null;
+  created_at: string;
+}
+
+export interface DamageReport {
+  id: string;
+  listing_name: string;
+  completion_date: string;
+  damage_question: 'Yes' | 'No' | 'Maybe';
+  damage_images: string[];
+  cleaner_name?: string;
+  assignment_uuid: string;
+}
+
+export interface CleaningSchedule {
+  last_cleaning_date?: string | null; // ISO date string
+  next_cleaning_date?: string | null; // ISO date string
+  status: 'on_time' | 'overdue' | 'no_schedule';
+  days_until_next?: number | null;
 }
 
 export interface IcalFeed {
@@ -78,6 +347,7 @@ export interface CleanerAssignment {
   event_uuid: string;
   hours: number;
   is_active: boolean;
+  assignment_type?: 'checkin' | 'checkout';
   created_at?: string;
   updated_at?: string;
 }
@@ -99,6 +369,34 @@ export const getListings = async (forceReload?: boolean) => {
   const { data, error } = await supabase
     .from('listings')
     .select('*');
+  
+  if (error) throw error;
+  
+  // Sort using custom sorting logic that groups similar properties together
+  return data?.sort(sortListingsByName) || [];
+};
+
+// Get only visible listings (excludes hidden ones) - used for dropdowns and filters
+export const getActiveListings = async () => {
+  const { data, error } = await supabase
+    .from('listings')
+    .select('*')
+    .eq('is_hidden', false);
+  
+  if (error) throw error;
+  
+  // Sort using custom sorting logic that groups similar properties together
+  return data?.sort(sortListingsByName) || [];
+};
+
+// Toggle listing visibility (hide/show)
+export const toggleListingVisibility = async (listingId: string, isHidden: boolean) => {
+  const { data, error } = await supabase
+    .from('listings')
+    .update({ is_hidden: isHidden })
+    .eq('id', listingId)
+    .select()
+    .single();
   
   if (error) throw error;
   return data;
@@ -215,6 +513,16 @@ export const associateIcalFeedWithListing = async (listingId: string, icalFeedId
   return data[0];
 };
 
+/** Remove a feed's link to a listing without deleting the ical_feeds row (same as ListingFeedsManager). */
+export const removeIcalFeedFromListing = async (listingId: string, icalFeedId: string) => {
+  const { error } = await supabase
+    .from('listing_ical_feeds')
+    .delete()
+    .match({ listing_id: listingId, ical_feed_id: icalFeedId });
+
+  if (error) throw error;
+};
+
 export const createIcalFeed = async (feed: Omit<IcalFeed, 'id' | 'created_at' | 'updated_at'>, listingId?: string) => {
   // Start a transaction by creating the ical feed first
   const { data: icalData, error: icalError } = await supabase
@@ -305,6 +613,41 @@ export const updateIcalFeed = async (id: string, updates: Partial<Omit<IcalFeed,
   }
   
   return icalData[0];
+};
+
+// Helper functions for listing-level active/inactive control
+export const toggleListingActive = async (listingId: string, isActive: boolean) => {
+  // Get all feeds associated with this listing
+  const feeds = await getIcalFeedsForListing(listingId);
+  
+  if (feeds.length === 0) {
+    throw new Error('No feeds found for this listing');
+  }
+  
+  // Update all feeds to the new active status
+  const updatePromises = feeds.map(feed => 
+    updateIcalFeed(feed.id, { is_active: isActive })
+  );
+  
+  await Promise.all(updatePromises);
+  
+  // Also update the listing color to reflect the status
+  // If inactive, set color to null; if active, restore the feed color
+  const primaryFeed = feeds[0]; // Use the first feed's color as the listing color
+  await updateListing(listingId, {
+    color: isActive ? (primaryFeed.color || '#4f46e5') : null
+  });
+  
+  return { success: true, feedsUpdated: feeds.length };
+};
+
+export const isListingActive = (feeds: IcalFeed[]): boolean => {
+  return feeds.length > 0 && feeds.some(feed => feed.is_active);
+};
+
+export const getListingActiveStatus = async (listingId: string): Promise<boolean> => {
+  const feeds = await getIcalFeedsForListing(listingId);
+  return isListingActive(feeds);
 };
 
 export const deleteIcalFeed = async (id: string, deleteMatchingListing = false) => {

@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
-import { updateListing } from '@/lib/models';
 import { supabase } from '@/lib/supabase';
 
-// GET /api/listings/[id]
+// GET /api/listings/[id]/documents
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -10,27 +9,20 @@ export async function GET(
   try {
     const { id } = await params;
     
-    const { data: listing, error } = await supabase
-      .from('listings')
+    const { data: documents, error } = await supabase
+      .from('listing_documents')
       .select('*')
-      .eq('id', id)
-      .single();
+      .eq('listing_id', id)
+      .order('uploaded_at', { ascending: false });
     
     if (error) throw error;
     
-    if (!listing) {
-      return NextResponse.json({
-        success: false,
-        error: 'Listing not found'
-      }, { status: 404 });
-    }
-    
     return NextResponse.json({
       success: true,
-      listing
+      documents: documents || []
     });
   } catch (error) {
-    console.error('Error fetching listing:', error);
+    console.error('Error fetching documents:', error);
     return NextResponse.json({
       success: false,
       error: error instanceof Error ? error.message : 'An unknown error occurred'
@@ -38,8 +30,8 @@ export async function GET(
   }
 }
 
-// PATCH /api/listings/[id]
-export async function PATCH(
+// POST /api/listings/[id]/documents
+export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -47,18 +39,33 @@ export async function PATCH(
     const { id } = await params;
     const body = await request.json();
     
-    // Update the listing with new data
-    const updatedListing = await updateListing(id, body);
+    // Upload to Cloudinary handled on client side
+    // This endpoint saves the document metadata
+    const { data: document, error } = await supabase
+      .from('listing_documents')
+      .insert({
+        listing_id: id,
+        file_name: body.file_name,
+        file_url: body.file_url,
+        file_type: body.file_type || null,
+        file_size: body.file_size || null,
+        description: body.description || null
+      })
+      .select()
+      .single();
+    
+    if (error) throw error;
     
     return NextResponse.json({
       success: true,
-      listing: updatedListing
+      document
     });
   } catch (error) {
-    console.error('Error updating listing:', error);
+    console.error('Error creating document:', error);
     return NextResponse.json({
       success: false,
       error: error instanceof Error ? error.message : 'An unknown error occurred'
     }, { status: 500 });
   }
-} 
+}
+

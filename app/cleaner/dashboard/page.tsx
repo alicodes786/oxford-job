@@ -512,7 +512,7 @@ function CleanerDashboardContent() {
                 </a>
               </Button>
             )}
-            <Button variant="ghost" onClick={logout}>
+            <Button variant="ghost" onClick={() => void logout()}>
               <LogOut className="h-4 w-4 mr-2" />
               Logout
             </Button>

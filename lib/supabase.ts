@@ -1,11 +1,13 @@
 import { createClient } from '@supabase/supabase-js';
+import { normalizeSupabaseUrl } from '@/lib/supabase-url';
 
 // `createClient('', …)` throws ("supabaseUrl is required"). That happens during
 // `next build` when env files are not loaded (e.g. fresh clone, CI). Use
 // placeholders only as a fallback; real URLs/keys from `.env.local` / hosting
 // env always win when set.
-const supabaseUrl =
-  process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || 'https://placeholder.supabase.co';
+const supabaseUrl = normalizeSupabaseUrl(
+  process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || 'https://placeholder.supabase.co',
+);
 const supabaseKey =
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() ||
   // Public Supabase demo anon JWT — valid shape for the client; not used when real env is set.

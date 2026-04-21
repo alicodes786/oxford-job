@@ -22,7 +22,9 @@ export default function CleanerDashboardLayout({
       if (!cleaner?.uuid) return;
 
       try {
-        const response = await fetch(`/api/notifications?cleaner_uuid=${cleaner.uuid}`);
+        const response = await fetch(`/api/notifications?cleaner_uuid=${cleaner.uuid}`, {
+          credentials: 'include',
+        });
         const data = await response.json();
         
         if (data.success) {

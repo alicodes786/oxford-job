@@ -1,18 +1,48 @@
 import { NextResponse } from 'next/server';
-import { 
-  generateWeeklyReport, 
-  getPaymentReport, 
-  listPaymentReports, 
+import { cookies } from 'next/headers';
+import {
+  generateWeeklyReport,
+  getPaymentReport,
+  listPaymentReports,
   cleanupDuplicateReports,
-  getDuplicateReportsSummary
+  getDuplicateReportsSummary,
 } from '@/lib/payment-reports';
+import {
+  CLEANER_SESSION_COOKIE,
+  unsealCleanerSession,
+} from '@/lib/cleaner-session';
+import {
+  DASHBOARD_SESSION_COOKIE,
+  unsealSession,
+} from '@/lib/auth-session';
 
 // GET /api/payment-reports
 // List payment reports with filters
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    
+
+    const qpCleaner = searchParams.get('cleaner_uuid');
+    if (qpCleaner) {
+      const jar = await cookies();
+      const cleanerTok = jar.get(CLEANER_SESSION_COOKIE)?.value;
+      const dashTok = jar.get(DASHBOARD_SESSION_COOKIE)?.value;
+
+      const cleanerSess = await unsealCleanerSession(cleanerTok);
+      const staff = await unsealSession(dashTok);
+
+      const staffAllowed =
+        staff?.role === 'admin' || staff?.role === 'sub-admin';
+
+      if (cleanerSess?.cleanerId === qpCleaner) {
+        // cleaner portal: own UUID only
+      } else if (staffAllowed) {
+        // dashboard staff: may filter by any cleaner
+      } else {
+        return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+      }
+    }
+
     const filters = {
       cleaner_uuid: searchParams.get('cleaner_uuid') || undefined,
       status: searchParams.get('status') || undefined,

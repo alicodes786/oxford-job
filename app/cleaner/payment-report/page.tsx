@@ -146,7 +146,9 @@ function CleanerPaymentReportContent() {
       const weekStartStr = format(monday, 'yyyy-MM-dd');
 
       // Search for existing payment report for this cleaner and week
-      const response = await fetch(`/api/payment-reports?cleaner_uuid=${cleaner.uuid}&limit=50`);
+      const response = await fetch(`/api/payment-reports?cleaner_uuid=${cleaner.uuid}&limit=50`, {
+        credentials: 'include',
+      });
       const data = await response.json();
       
       if (data.success) {

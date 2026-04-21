@@ -1,20 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { supabase } from '@/lib/supabase';
+import { CLEANER_SESSION_COOKIE, unsealCleanerSession } from '@/lib/cleaner-session';
 
 export async function GET(request: NextRequest) {
   try {
-    const searchParams = new URL(request.url).searchParams;
-    const cleanerUuid = searchParams.get('cleaner_uuid');
-    const limit = parseInt(searchParams.get('limit') || '20');
+    const jar = await cookies();
+    const token = jar.get(CLEANER_SESSION_COOKIE)?.value;
+    const sess = await unsealCleanerSession(token);
 
-    if (!cleanerUuid) {
-      return NextResponse.json({
-        success: false,
-        error: 'cleaner_uuid is required'
-      }, { status: 400 });
+    if (!sess) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get notifications for the cleaner
+    const searchParams = request.nextUrl.searchParams;
+    const qpUuid = searchParams.get('cleaner_uuid');
+    if (qpUuid && qpUuid !== sess.cleanerId) {
+      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+    }
+
+    const cleanerUuid = sess.cleanerId;
+    const limit = parseInt(searchParams.get('limit') || '20');
+
     const { data: notifications, error } = await supabase
       .from('notifications')
       .select('*')
@@ -24,22 +31,18 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('Error fetching notifications:', error);
-      return NextResponse.json({
-        success: false,
-        error: 'Failed to fetch notifications'
-      }, { status: 500 });
+      return NextResponse.json(
+        { success: false, error: 'Failed to fetch notifications' },
+        { status: 500 },
+      );
     }
 
     return NextResponse.json({
       success: true,
-      notifications
+      notifications,
     });
-
   } catch (error) {
     console.error('Error processing notifications request:', error);
-    return NextResponse.json({
-      success: false,
-      error: 'Internal server error'
-    }, { status: 500 });
+    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }
-} 
+}

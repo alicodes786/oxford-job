@@ -1,98 +1,73 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { Cleaner, getCleanerById } from './models';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from 'react';
+import { useRouter } from 'next/navigation';
+import type { Cleaner } from './models';
 
 interface CleanerAuthContextType {
-  cleaner: Omit<Cleaner, 'password'> | null;
+  cleaner: Omit<Cleaner, 'password'> & { uuid: string } | null;
   isLoading: boolean;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 const CleanerAuthContext = createContext<CleanerAuthContextType>({
   cleaner: null,
   isLoading: true,
-  logout: () => {}
+  logout: async () => {},
 });
 
 export const useCleanerAuth = () => useContext(CleanerAuthContext);
 
-// Helper function to safely store auth data
-export const storeAuthData = (data: unknown) => {
-  try {
-    const authData = JSON.stringify(data);
-    sessionStorage.setItem('cleanerAuth', authData);
-    localStorage.setItem('cleanerAuth', authData);
-    return true;
-  } catch (error) {
-    console.error('Error storing auth data:', error);
-    return false;
-  }
-};
-
-// Helper function to retrieve auth data
-const getAuthData = () => {
-  try {
-    let authData = sessionStorage.getItem('cleanerAuth');
-    if (!authData) {
-      authData = localStorage.getItem('cleanerAuth');
-      if (authData) {
-        try { sessionStorage.setItem('cleanerAuth', authData); } catch (_) {}
-      }
-    }
-    if (!authData) return null;
-    return JSON.parse(authData);
-  } catch (error) {
-    console.error('Error retrieving auth data:', error);
-    return null;
-  }
-};
-
-// Helper function to clear auth data
-const clearAuthData = () => {
-  try {
-    sessionStorage.removeItem('cleanerAuth');
-    localStorage.removeItem('cleanerAuth');
-  } catch (error) {
-    console.error('Error clearing auth data:', error);
-  }
-};
-
 export function CleanerAuthProvider({ children }: { children: ReactNode }) {
-  const [cleaner, setCleaner] = useState<Omit<Cleaner, 'password'> | null>(null);
+  const [cleaner, setCleaner] = useState<(Omit<Cleaner, 'password'> & { uuid: string }) | null>(
+    null,
+  );
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const initAuth = async () => {
-      const authData = getAuthData();
+    let cancelled = false;
 
-      if (!authData?.uuid) {
-        setIsLoading(false);
-        return;
-      }
-
+    (async () => {
       try {
-        const verifiedCleaner = await getCleanerById(authData.uuid);
-        if (verifiedCleaner) {
-          setCleaner(verifiedCleaner);
-        } else {
-          clearAuthData();
+        const res = await fetch('/api/cleaner/auth/me', {
+          credentials: 'include',
+          cache: 'no-store',
+        });
+        const data = (await res.json()) as {
+          cleaner: (Omit<Cleaner, 'password'> & { uuid: string }) | null;
+        };
+        if (!cancelled) {
+          setCleaner(data.cleaner ?? null);
         }
-      } catch (error) {
-        console.error('Error verifying cleaner:', error);
-        clearAuthData();
+      } catch {
+        if (!cancelled) setCleaner(null);
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
-    };
+    })();
 
-    initAuth();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const logout = () => {
-    clearAuthData();
-    setCleaner(null);
-  };
+  const logout = useCallback(async () => {
+    try {
+      await fetch('/api/cleaner/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      });
+    } finally {
+      setCleaner(null);
+    }
+  }, []);
 
   return (
     <CleanerAuthContext.Provider value={{ cleaner, isLoading, logout }}>
@@ -102,5 +77,22 @@ export function CleanerAuthProvider({ children }: { children: ReactNode }) {
 }
 
 export function CleanerProtectedRoute({ children }: { children: ReactNode }) {
+  const { cleaner, isLoading } = useCleanerAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoading && !cleaner) {
+      router.replace('/cleaner/login');
+    }
+  }, [isLoading, cleaner, router]);
+
+  if (isLoading || !cleaner) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
+      </div>
+    );
+  }
+
   return <>{children}</>;
-} 
+}

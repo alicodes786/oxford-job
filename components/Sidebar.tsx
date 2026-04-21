@@ -1,9 +1,9 @@
 'use client';
 
 import { useAuth } from '@/contexts/AuthContext';
-import {  X,  Calendar, Home, Users, Database, FileText, CreditCard} from 'lucide-react';
+import { X, Calendar, Home, Users, Database, FileText, CreditCard, LogOut } from 'lucide-react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Button } from './ui/button';
 import { useEffect, useState } from 'react';
 
@@ -13,8 +13,9 @@ interface SidebarProps {
 }
 
 export function Sidebar({ isMobileSidebarOpen, setIsMobileSidebarOpen }: SidebarProps) {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const pathname = usePathname();
+  const router = useRouter();
   const [isClient, setIsClient] = useState(false);
 
   // Use useEffect for client-side-only code
@@ -224,7 +225,20 @@ export function Sidebar({ isMobileSidebarOpen, setIsMobileSidebarOpen }: Sidebar
             )}
           </ul>
         </nav>
-        
+
+        <div className="mt-auto border-t p-4">
+          <Button
+            variant="outline"
+            className="w-full justify-start"
+            onClick={async () => {
+              await logout();
+              router.push('/login');
+            }}
+          >
+            <LogOut className="mr-2 h-4 w-4" />
+            Sign out
+          </Button>
+        </div>
       </div>
     </>
   );

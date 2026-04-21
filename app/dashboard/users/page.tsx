@@ -171,6 +171,7 @@ export default function UsersPage() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({
           userId: editingUser?.id,
           cleanerId: editingCleaner?.id,
@@ -200,16 +201,22 @@ export default function UsersPage() {
     }
 
     try {
-      const { error } = await supabase
-        .from('users')
-        .insert([{
+      const response = await fetch('/api/users/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
           username: newUser.username,
           email: newUser.email,
           password: newUser.password,
-          role: newUser.role
-        }]);
+          role: newUser.role,
+        }),
+      });
 
-      if (error) throw error;
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create user');
+      }
 
       toast.success('User created successfully');
       setShowNewUserDialog(false);
@@ -217,7 +224,7 @@ export default function UsersPage() {
       loadUsers();
     } catch (error) {
       console.error('Error creating user:', error);
-      toast.error('Failed to create user');
+      toast.error(error instanceof Error ? error.message : 'Failed to create user');
     }
   };
 

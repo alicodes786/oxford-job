@@ -1,7 +1,17 @@
 'use client';
 
 import { useAuth } from '@/contexts/AuthContext';
-import { X, Calendar, Home, Users, Database, FileText, CreditCard, LogOut } from 'lucide-react';
+import {
+  X,
+  Calendar,
+  Home,
+  Users,
+  Database,
+  FileText,
+  CreditCard,
+  LogOut,
+  ParkingCircle,
+} from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Button } from './ui/button';
@@ -156,6 +166,20 @@ export function Sidebar({ isMobileSidebarOpen, setIsMobileSidebarOpen }: Sidebar
                     >
                       <Calendar className="mr-2 h-4 w-4" />
                       Calendar
+                    </Button>
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/dashboard/early-parking" passHref>
+                    <Button
+                      variant={
+                        pathname === '/dashboard/early-parking' ? 'default' : 'ghost'
+                      }
+                      className="w-full justify-start"
+                      onClick={() => setIsMobileSidebarOpen(false)}
+                    >
+                      <ParkingCircle className="mr-2 h-4 w-4" />
+                      Booking add-ons
                     </Button>
                   </Link>
                 </li>

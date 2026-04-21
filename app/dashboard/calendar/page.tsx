@@ -2,6 +2,7 @@
 import UniversalCalendarPage from '@/components/UniversalCalendarPage';
 import { useAuth } from '@/contexts/AuthContext';
 import { useState } from 'react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
 export default function CalendarPage() {
@@ -36,6 +37,10 @@ export default function CalendarPage() {
               className="mb-4"
             >
               Refresh Calendar
+            </Button>
+
+            <Button variant="outline" size="sm" className="mb-4" asChild>
+              <Link href="/dashboard/early-parking">Booking add-ons</Link>
             </Button>
           </div>
         </div>

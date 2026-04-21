@@ -1,5 +1,16 @@
+import { format, addDays } from 'date-fns';
 import { supabase } from './supabase';
 import { Listing } from './models';
+
+/** Browser-local calendar strings (London spec: no listing TZ). */
+export function bookingAlertLocalDates() {
+  const now = new Date();
+  return {
+    today: format(now, 'yyyy-MM-dd'),
+    tomorrow: format(addDays(now, 1), 'yyyy-MM-dd'),
+    plus2: format(addDays(now, 2), 'yyyy-MM-dd'),
+  };
+}
 
 // ===== TYPES =====
 export interface ParkingPermit {
@@ -127,3 +138,38 @@ export const deleteEarlyCheckin = async (id: string) => {
   if (error) throw error;
 };
 
+/** Calendar alerts: check_in_date from today through today+2 inclusive (London). UI filters to today/tomorrow. */
+export async function getEarlyCheckinsForCalendarAlerts(): Promise<EarlyCheckin[]> {
+  const { today, plus2 } = bookingAlertLocalDates();
+  const { data, error } = await supabase
+    .from('early_checkins')
+    .select(`
+      *,
+      listing:listings(*)
+    `)
+    .gte('check_in_date', today)
+    .lte('check_in_date', plus2)
+    .order('check_in_date', { ascending: true });
+
+  if (error) throw error;
+  return (data || []) as EarlyCheckin[];
+}
+
+/**
+ * Calendar alerts: check-in today or tomorrow, and (permit_os OR payment_pending) (London).
+ */
+export async function getParkingPermitsForCalendarAlerts(): Promise<ParkingPermit[]> {
+  const { today, tomorrow } = bookingAlertLocalDates();
+  const { data, error } = await supabase
+    .from('parking_permits')
+    .select(`
+      *,
+      listing:listings(*)
+    `)
+    .in('check_in_date', [today, tomorrow])
+    .or('permit_status.eq.permit_os,fee_paid_status.eq.payment_pending')
+    .order('check_in_date', { ascending: true });
+
+  if (error) throw error;
+  return (data || []) as ParkingPermit[];
+}

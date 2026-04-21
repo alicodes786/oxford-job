@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { format, addDays, startOfDay, endOfDay, isSameDay, formatDistanceToNow, parse, isValid } from 'date-fns';
-import { ChevronDown, ChevronUp, Loader2, RefreshCw, Clock, Plus } from 'lucide-react';
+import { ChevronDown, ChevronUp, Loader2, RefreshCw, Clock, Plus, Sunrise, Car } from 'lucide-react';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -20,6 +20,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import RecentEvents from '@/components/RecentEvents';
 import JobCompletionNotifications from '@/components/JobCompletionNotifications';
 import { Switch } from '@/components/ui/switch';
+import { BookingAlertsWrapper } from '@/components/BookingAlertsWrapper';
+import {
+  bookingAlertLocalDates,
+  getEarlyCheckinsForCalendarAlerts,
+  getParkingPermitsForCalendarAlerts,
+} from '@/lib/booking-addons';
+import { buildBinAlertsForDate } from '@/lib/bin-collection-schedule';
+import type { BinAlertRow } from '@/lib/bin-collection-schedule';
+import type { EarlyCheckin, ParkingPermit } from '@/lib/booking-addons';
+import { EarlyCheckinDialog } from '@/components/early-checkin-dialog';
+import { ParkingPermitDialog } from '@/components/parking-permit-dialog';
 
 interface CalendarEvent {
   id: string;
@@ -70,12 +81,63 @@ export default function UniversalCalendarPage({ hasAccess, noAccessMessage, debu
   // Add recurrence fields
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurrenceEndDateStr, setRecurrenceEndDateStr] = useState('');
+  const [earlyCheckins, setEarlyCheckins] = useState<EarlyCheckin[]>([]);
+  const [parkingPermitsAlert, setParkingPermitsAlert] = useState<ParkingPermit[]>([]);
+  const [binAlerts, setBinAlerts] = useState<BinAlertRow[]>([]);
+  const [earlyCheckinDialogOpen, setEarlyCheckinDialogOpen] = useState(false);
+  const [parkingPermitDialogOpen, setParkingPermitDialogOpen] = useState(false);
 
   useEffect(() => {
     if (hasAccess) {
       loadCalendarData();
     }
   }, [hasAccess, selectedListingName]);
+
+  const loadBookingAlerts = useCallback(async () => {
+    try {
+      const { today, tomorrow } = bookingAlertLocalDates();
+
+      const [early, parking, binRes] = await Promise.all([
+        getEarlyCheckinsForCalendarAlerts(),
+        getParkingPermitsForCalendarAlerts(),
+        fetch('/api/listings/bin-collection-alerts-data'),
+      ]);
+
+      setEarlyCheckins(early);
+      setParkingPermitsAlert(parking);
+
+      if (!binRes.ok) {
+        const errBody = (await binRes.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(errBody?.error || `Bin alerts request failed (${binRes.status})`);
+      }
+
+      const binJson = (await binRes.json()) as {
+        success?: boolean;
+        entries?: Parameters<typeof buildBinAlertsForDate>[0];
+      };
+
+      if (binJson.success && Array.isArray(binJson.entries)) {
+        setBinAlerts([
+          ...buildBinAlertsForDate(binJson.entries, today),
+          ...buildBinAlertsForDate(binJson.entries, tomorrow),
+        ]);
+      } else {
+        setBinAlerts([]);
+      }
+    } catch (e) {
+      console.error('[calendar] booking alerts:', e);
+      toast.error('Could not load booking alerts');
+      setEarlyCheckins([]);
+      setParkingPermitsAlert([]);
+      setBinAlerts([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (hasAccess) {
+      void loadBookingAlerts();
+    }
+  }, [hasAccess, loadBookingAlerts]);
 
   useEffect(() => {
     if (!hasAccess) return;
@@ -170,6 +232,7 @@ export default function UniversalCalendarPage({ hasAccess, noAccessMessage, debu
         throw new Error(result.error || 'Failed to sync calendar data');
       }
       await loadCalendarData();
+      await loadBookingAlerts();
       setLastSyncTime(new Date().toISOString());
       toast.success(`Calendar synchronized successfully. Added: ${result.stats.added}, Updated: ${result.stats.updated}`, { id: 'sync-calendars' });
     } catch (error) {
@@ -183,6 +246,7 @@ export default function UniversalCalendarPage({ hasAccess, noAccessMessage, debu
   const refreshCalendar = async () => {
     console.log('📅 Refreshing calendar after sync...');
     await loadCalendarData();
+    await loadBookingAlerts();
     setLastSyncTime(new Date().toISOString());
     toast.success('Calendar refreshed successfully');
   };
@@ -340,6 +404,12 @@ export default function UniversalCalendarPage({ hasAccess, noAccessMessage, debu
   return (
     <div className="p-2 md:p-6">
       <div className="space-y-4">
+        <BookingAlertsWrapper
+          earlyCheckins={earlyCheckins}
+          parkingPermits={parkingPermitsAlert}
+          binAlerts={binAlerts}
+        />
+
         {/* Mobile-optimized header */}
         <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
           <div>
@@ -514,6 +584,28 @@ export default function UniversalCalendarPage({ hasAccess, noAccessMessage, debu
                 </div>
               </DialogContent>
             </Dialog>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="whitespace-nowrap"
+              onClick={() => setEarlyCheckinDialogOpen(true)}
+            >
+              <Sunrise className="h-4 w-4 md:mr-2" />
+              <span className="hidden md:inline">Early check-in</span>
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="whitespace-nowrap"
+              onClick={() => setParkingPermitDialogOpen(true)}
+            >
+              <Car className="h-4 w-4 md:mr-2" />
+              <span className="hidden md:inline">Parking permit</span>
+            </Button>
             
             <Button
               variant="outline"
@@ -734,6 +826,23 @@ export default function UniversalCalendarPage({ hasAccess, noAccessMessage, debu
             />
           </DialogContent>
         </Dialog>
+
+        <EarlyCheckinDialog
+          open={earlyCheckinDialogOpen}
+          onOpenChange={setEarlyCheckinDialogOpen}
+          checkin={null}
+          onSave={() => {
+            void loadBookingAlerts();
+          }}
+        />
+        <ParkingPermitDialog
+          open={parkingPermitDialogOpen}
+          onOpenChange={setParkingPermitDialogOpen}
+          permit={null}
+          onSave={() => {
+            void loadBookingAlerts();
+          }}
+        />
       </div>
     </div>
   );
